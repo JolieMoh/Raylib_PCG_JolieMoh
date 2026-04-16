@@ -5,7 +5,7 @@
 // ============================================= 
 // PCG_CreateMap
 // ============================================= 
-void PCG_CreateMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
+void PCG::PCG_CreateMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
 {
     for (int y = 0; y < MAP_ROWS; y++) {
         for (int x = 0; x < MAP_COLUMNS; x++) {
@@ -17,7 +17,7 @@ void PCG_CreateMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
 // ============================================= 
 // PCG_GetTileColor
 // ============================================= 
-Color PCG_GetTileColor(TileType tileType)
+Color PCG::PCG_GetTileColor(TileType tileType)
 {
     switch (tileType) {
     case TILE_TYPE_GRASS: return GRASS_COLOR;
@@ -29,7 +29,7 @@ Color PCG_GetTileColor(TileType tileType)
 // ============================================= 
 // PCG_DrawMap
 // ============================================= 
-void PCG_DrawMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
+void PCG::PCG_DrawMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
 {
     for (int y = 0; y < MAP_ROWS; y++) {
         for (int x = 0; x < MAP_COLUMNS; x++) {
@@ -41,7 +41,7 @@ void PCG_DrawMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
 // ============================================= 
 // PCG_PrintMap
 // ============================================= 
-void PCG_PrintMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
+void PCG::PCG_PrintMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
 {
     printf("\n-------Map Layout:--------\n");
     for (int y = 0; y < MAP_ROWS; y++) {
@@ -57,7 +57,7 @@ void PCG_PrintMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS])
     }
     printf("--------------------------\n");
 }
-char GetTileChar(TileType tileType) {
+char PCG::GetTileChar(TileType tileType) {
     switch (tileType) {
     case TILE_TYPE_GRASS: return GRASS_CHAR;
     case TILE_TYPE_ROCK: return ROCK_CHAR;
@@ -65,7 +65,7 @@ char GetTileChar(TileType tileType) {
     }
 }
 
-void PCG_SaveMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _filename) {
+void PCG::PCG_SaveMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _filename) {
     FILE* file = fopen(_filename, "w"); // Write mode
     if (file == NULL) return;
 
@@ -78,7 +78,7 @@ void PCG_SaveMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _fi
     fclose(file);
 }
 
-void PCG_LoadMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _filename) {
+void PCG::PCG_LoadMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _filename) {
     FILE* file = fopen(_filename, "r"); // Read mode
     if (file == NULL) return;
 
@@ -95,7 +95,7 @@ void PCG_LoadMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* _fi
     fclose(file);
 }
 // Img file save
-void PCG_SaveMapImage(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* filename) {
+void PCG::PCG_SaveMapImage(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* filename) {
     Image mapImage = GenImageColor(MAP_COLUMNS, MAP_ROWS, BLACK);
 
     for (int y = 0; y < MAP_ROWS; y++) {
@@ -118,26 +118,26 @@ void PCG_SaveMapImage(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* fi
 // ============================================= 
 // PCG_DrawGUI
 // ============================================= 
-void PCG_DrawGUI(TileType tileArray[MAP_ROWS][MAP_COLUMNS]) {
+void PCG::PCG_DrawGUI(TileType tileArray[MAP_ROWS][MAP_COLUMNS]) {
     // Reset Button
     if (GuiButton(RESET_BUTTON_BOUNDS, "Reset Map")) {
         PCG_CreateMap(tileArray);
     }
 
     // Save Data Button
-    Rectangle saveRect = { BUTTON_X, BUTTON_Y - 70, BUTTON_WIDTH, BUTTON_HEIGHT };
+    saveRect = { BUTTON_X, BUTTON_Y - 70, BUTTON_WIDTH, BUTTON_HEIGHT };
     if (GuiButton(saveRect, "Save Map Data")) {
         PCG_SaveMapData(tileArray, MAP_TEXT_FILENAME);
     }
 
     // Load Data Button
-    Rectangle loadRect = { BUTTON_X, BUTTON_Y - 140, BUTTON_WIDTH, BUTTON_HEIGHT };
+    loadRect = { BUTTON_X, BUTTON_Y - 140, BUTTON_WIDTH, BUTTON_HEIGHT };
     if (GuiButton(loadRect, "Load Map Data")) {
         PCG_LoadMapData(tileArray, MAP_TEXT_FILENAME);
     }
 
     // Save Image Button
-    Rectangle imgRect = { BUTTON_X, BUTTON_Y - 210, BUTTON_WIDTH, BUTTON_HEIGHT };
+    imgRect = { BUTTON_X, BUTTON_Y - 210, BUTTON_WIDTH, BUTTON_HEIGHT };
     if (GuiButton(imgRect, "Save Map PNG")) {
         PCG_SaveMapImage(tileArray, MAP_IMAGE_FILENAME);
     }

@@ -306,8 +306,8 @@
     <ClInclude Include="include\resource_dir.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.c" />
-    <ClCompile Include="src\PCG.c" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\PCG.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\icon.ico" />

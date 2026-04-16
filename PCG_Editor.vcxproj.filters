@@ -26,10 +26,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.c">
+    <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\PCG.c">
+    <ClCompile Include="src\PCG.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
