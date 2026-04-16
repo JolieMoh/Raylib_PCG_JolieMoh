@@ -142,3 +142,4 @@ void PCG_DrawGUI(TileType tileArray[MAP_ROWS][MAP_COLUMNS]) {
         PCG_SaveMapImage(tileArray, MAP_IMAGE_FILENAME);
     }
 }
+
