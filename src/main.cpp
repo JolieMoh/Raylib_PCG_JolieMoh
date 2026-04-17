@@ -1,42 +1,29 @@
-/*
-===============================================================================
-Construct Map Editor
--------------------------------------------------------------------------------
-Author:      Griffith Film School
-Description: A simple tile-based map editor template using raylib for
-			 introductory programming students. Demonstrates 2D arrays,
-			 nested loops, and basic graphics rendering.
-===============================================================================
-*/
-    
 #include "raylib.h"
 #include "resource_dir.h"
 #include "PCG.h" // Import our new module
 
-int main()
-{
+int main() {
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Construct Map Editor");
+    InitWindow(PCG::SCREEN_WIDTH, PCG::SCREEN_HEIGHT, "Construct Map Editor");
 
-    PCG::TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { TileType::TILE_TYPE_ROCK };
-    PCG::PCG_CreateMap(tileArray);
+    //PCG::TileType tileArray[PCG::MAP_ROWS][PCG::MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_ROCK };
+    //PCG::CreateMap(tileArray);
+    PCG::TileMap tileMap;
+    //tileMap.CreateMap();
+    //tileMap.SetMapGenerator(new PCG::RandomMapGenerator());
+    tileMap.SetMapGenerator(new PCG::NoiseMapGenerator());
+    tileMap.GetMapGenerator()->Generate(tileMap.tileArray); // Generate the map using the selected generator
 
-    // Save text and image
-    PCG_SaveMapData(tileArray, MAP_TEXT_FILENAME);
-    PCG_SaveMapImage(tileArray, MAP_IMAGE_FILENAME);
-
-    while (!WindowShouldClose())
-    {
+    while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(BLACK);
-
-        PCG::PCG_DrawMap(tileArray); // Function from PCG.c
-        PCG::PCG_DrawGUI(tileArray); 
+        //PCG::DrawMap(tileArray); // Function from PCG.c
+        tileMap.DrawMap();
         DrawText("Construct Map Editor", 20, 20, 20, WHITE);
+        //PCG::PCG_DrawGUI(tileArray);
+        tileMap.DrawGUI();
         EndDrawing();
-        
     }
-
     CloseWindow();
     return 0;
 }
