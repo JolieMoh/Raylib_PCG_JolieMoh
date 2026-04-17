@@ -5,22 +5,22 @@ namespace PCG {
     // Screen & Map Dimensions
     constexpr int SCREEN_WIDTH = 1024;
     constexpr int SCREEN_HEIGHT = 1024;
-    constexpr int TILE_SIZE = 4;
+    constexpr int TILE_SIZE = 3;
     constexpr int MAP_COLUMNS = (SCREEN_WIDTH / TILE_SIZE);
     constexpr int MAP_ROWS = (SCREEN_HEIGHT / TILE_SIZE);
 
     // Tile Types (Using Enum for readability)
     typedef enum {
-        TILE_TYPE_GRASS  = 0,
-        TILE_TYPE_ROCK = 1,
+        TILE_TYPE_PLATFORM  = 0,
+        TILE_TYPE_GROUND = 1,
         TILE_COUNT  // Automatically counts total types
     } TileType;
 
     // Visual & Character settings
-    constexpr char GRASS_CHAR = '.';
-    constexpr char ROCK_CHAR = '#';
-    constexpr Color GRASS_COLOR = { 69, 182, 156, 255 };
-    constexpr Color ROCK_COLOR = { 114, 147, 160, 255 };
+    constexpr char PLATFORM_CHAR = '.';
+    constexpr char GROUND_CHAR = '#';
+    constexpr Color PLATFORM_COLOR = YELLOW;
+    constexpr Color GROUND_COLOR = RED;
     constexpr Color UNKNOWN_COLOR = WHITE;
 
     // UI variable defines used to position buttons on screen
@@ -85,7 +85,7 @@ namespace PCG {
         MapGenerator* GetMapGenerator() const;
 
         // public tile array, for convenience but ideally hidden as private later
-        TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_ROCK };  // 2D array to hold tile types for the map
+        TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_GROUND };  // 2D array to hold tile types for the map
 
     private:
         MapGenerator* mapGenerator;

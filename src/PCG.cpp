@@ -15,7 +15,7 @@ PCG::TileMap::TileMap()
     // We can change this later using the CreateMap() function, or by setting individual tiles with SetTile().
     for (int y = 0; y < MAP_ROWS; y++) {
         for (int x = 0; x < MAP_COLUMNS; x++) {
-            tileArray[y][x] = TILE_TYPE_GRASS;
+            tileArray[y][x] = TILE_TYPE_PLATFORM;
         }
     }
 
@@ -67,10 +67,10 @@ void PCG::TileMap::SetTile(int x, int y, TileType tileType)
 // ============================================= 
 Color PCG::TileMap::GetTileColor(PCG::TileType _tileType) const {
     switch (_tileType) {
-    case PCG::TileType::TILE_TYPE_GRASS:
-        return GRASS_COLOR;
-    case TILE_TYPE_ROCK:
-        return ROCK_COLOR;
+    case PCG::TileType::TILE_TYPE_PLATFORM:
+        return PLATFORM_COLOR;
+    case TILE_TYPE_GROUND:
+        return GROUND_COLOR;
     default:
         return UNKNOWN_COLOR;
     }
@@ -105,10 +105,10 @@ void PCG::TileMap::PrintMap() const {
 // ============================================= 
 char PCG::TileMap::GetTileChar(PCG::TileType _tileType) const {
     switch (_tileType) {
-    case PCG::TileType::TILE_TYPE_GRASS:
-        return PCG::GRASS_CHAR;
-    case PCG::TileType::TILE_TYPE_ROCK:
-        return PCG::ROCK_CHAR;
+    case PCG::TileType::TILE_TYPE_PLATFORM:
+        return PCG::PLATFORM_CHAR;
+    case PCG::TileType::TILE_TYPE_GROUND:
+        return PCG::GROUND_CHAR;
     default:
         return '?';
     }
@@ -163,11 +163,11 @@ void PCG::TileMap::LoadMapData(const char* _filename) {
             }
 
 
-            if (ch == PCG::GRASS_CHAR) {
-                tileArray[y][x] = PCG::TileType::TILE_TYPE_GRASS;
+            if (ch == PCG::PLATFORM_CHAR) {
+                tileArray[y][x] = PCG::TileType::TILE_TYPE_PLATFORM;
             }
-            else if (ch == PCG::ROCK_CHAR) {
-                tileArray[y][x] = PCG::TileType::TILE_TYPE_ROCK;
+            else if (ch == PCG::GROUND_CHAR) {
+                tileArray[y][x] = PCG::TileType::TILE_TYPE_GROUND;
             }
         }
     }
@@ -305,10 +305,10 @@ void PCG::NoiseMapGenerator::Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]
 
             // Threshold: Dark spots are Rock, Light spots are Grass
             if (brightness < 0.5f) {
-                _tileArray[y][x] = TILE_TYPE_ROCK;
+                _tileArray[y][x] = TILE_TYPE_GROUND;
             }
             else {
-                _tileArray[y][x] = TILE_TYPE_GRASS;
+                _tileArray[y][x] = TILE_TYPE_PLATFORM;
             }
         }
     }
