@@ -1,58 +1,95 @@
-#ifndef PCG_H
-#define PCG_H
+#pragma once
 #include "raylib.h"
 
-// Screen & Map Dimensions
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 1024
-#define TILE_SIZE 64
-#define MAP_COLUMNS (SCREEN_WIDTH / TILE_SIZE)
-#define MAP_ROWS (SCREEN_HEIGHT / TILE_SIZE)
+namespace PCG {
+    // Screen & Map Dimensions
+    constexpr int SCREEN_WIDTH = 1024;
+    constexpr int SCREEN_HEIGHT = 1024;
+    constexpr int TILE_SIZE = 4;
+    constexpr int MAP_COLUMNS = (SCREEN_WIDTH / TILE_SIZE);
+    constexpr int MAP_ROWS = (SCREEN_HEIGHT / TILE_SIZE);
 
-// Tile Types (Using Enum for readability)
-typedef enum {
-    TILE_TYPE_GRASS = 0,
-    TILE_TYPE_ROCK = 1,
-    TILE_COUNT  // Automatically counts total types
-} TileType;
+    // Tile Types (Using Enum for readability)
+    typedef enum {
+        TILE_TYPE_GRASS  = 0,
+        TILE_TYPE_ROCK = 1,
+        TILE_COUNT  // Automatically counts total types
+    } TileType;
 
-// Visual & Character settings
-#define GRASS_CHAR '.'
-#define ROCK_CHAR '#'
-#define GRASS_COLOR (Color){69, 182, 156, 255}
-#define ROCK_COLOR (Color){114, 147, 160, 255}
-#define UNKNOWN_COLOR WHITE
+    // Visual & Character settings
+    constexpr char GRASS_CHAR = '.';
+    constexpr char ROCK_CHAR = '#';
+    constexpr Color GRASS_COLOR = { 69, 182, 156, 255 };
+    constexpr Color ROCK_COLOR = { 114, 147, 160, 255 };
+    constexpr Color UNKNOWN_COLOR = WHITE;
 
-// Function Declarations
-void PCG_CreateMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]);
-void PCG_DrawMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]);
-void PCG_PrintMap(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]);
-Color PCG_GetTileColor(TileType tileType);
+    // UI variable defines used to position buttons on screen
+    constexpr int BUTTON_WIDTH = 200;
+    constexpr int BUTTON_HEIGHT = 50;
+    constexpr int BUTTON_X = (SCREEN_WIDTH - BUTTON_WIDTH - 20);
+    constexpr int BUTTON_Y = (SCREEN_HEIGHT - BUTTON_HEIGHT - 20);
+    constexpr Rectangle RESET_BUTTON_BOUNDS = { BUTTON_X, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT };
 
-// File Names
-#define MAP_TEXT_FILENAME "pcg_map_data.txt"
+    // File Names
+    constexpr char* MAP_TEXT_FILENAME = "pcg_map_data.txt";
+    constexpr char* MAP_IMAGE_FILENAME = "pcg_map.png";
 
-// Helpers
-char GetTileChar(TileType tileType);
+    // Pure Virtual Class
+    class MapGenerator {
+    public:
+        virtual ~MapGenerator() = default; // virtual destructor
+        // This enforces that every child class MUST write their own Generate function.
+        virtual void Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]) = 0;
+    };
 
-// I/O Functions
-void PCG_SaveMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* filename);
-void PCG_LoadMapData(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* filename);
+    // Random Map Generator
+    class RandomMapGenerator : public MapGenerator {
+    public:
+        RandomMapGenerator();
+        ~RandomMapGenerator();
+        void Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]) override;
+    };
 
-// Img file save
-#define MAP_IMAGE_FILENAME "pcg_map.png"
-void PCG_SaveMapImage(TileType _tileArray[MAP_ROWS][MAP_COLUMNS], const char* filename);
+    // Noise Map Generator
+    class NoiseMapGenerator : public MapGenerator {
+    public:
+        NoiseMapGenerator();
+        ~NoiseMapGenerator();
+        void Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]) override;
+    };
 
-// UI variable defines used to position buttons on screen
-#define BUTTON_WIDTH 200
-#define BUTTON_HEIGHT 50
-#define BUTTON_X (SCREEN_WIDTH - BUTTON_WIDTH - 20)
-#define BUTTON_Y (SCREEN_HEIGHT - BUTTON_HEIGHT - 20)
-#define RESET_BUTTON_BOUNDS (Rectangle){ BUTTON_X, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT }
+    class TileMap {
+    public:
+        TileMap();  // constructor
+        ~TileMap(); // destructor
 
-// Declare UI drawing function
-void PCG_DrawGUI(TileType tileArray[MAP_ROWS][MAP_COLUMNS]);
+        // Core Actions
+        // Function Declarations
+        void CreateMap();
+        void DrawMap() const; // 'const' means this function won't change the map data
+        void PrintMap() const;
+        void DrawGUI();
 
+        // I/O Functions
+        void SaveMapData(const char* filename) const;
+        void SaveMapImage(const char* filename) const;
+        void LoadMapData(const char* filename);
 
+        // Accessors (Getters/Setters)
+        void SetTile(int x, int y, PCG::TileType tileType);
+        Color GetTileColor(TileType tileType) const;
+        char GetTileChar(TileType tileType) const;
 
-#endif // PCG_H
+        // getter /setter for map generator 
+        void SetMapGenerator(MapGenerator* generator);
+        MapGenerator* GetMapGenerator() const;
+
+        // public tile array, for convenience but ideally hidden as private later
+        TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_ROCK };  // 2D array to hold tile types for the map
+
+    private:
+        MapGenerator* mapGenerator;
+
+    };
+
+}
