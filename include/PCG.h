@@ -11,7 +11,7 @@ namespace PCG {
 
     // Tile Types (Using Enum for readability)
     typedef enum {
-        TILE_TYPE_GRASS = 0,
+        TILE_TYPE_GRASS  = 0,
         TILE_TYPE_ROCK = 1,
         TILE_COUNT  // Automatically counts total types
     } TileType;
