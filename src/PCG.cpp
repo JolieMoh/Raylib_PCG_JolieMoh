@@ -137,7 +137,7 @@ void PCG::TileMap::SaveMapData(const char* _filename) const {
 
     file.close(); // Close C++ file stream
     printf("Map saved to %s\n", _filename);
-}
+} 
 
 
 // ============================================= 
@@ -273,7 +273,6 @@ void PCG::RandomMapGenerator::Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS
         }
     }
 }
-
 
 // =============================================
 // NoiseGenerator

@@ -301,11 +301,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\HexGenerator.h" />
     <ClInclude Include="include\PCG.h" />
     <ClInclude Include="include\raygui.h" />
     <ClInclude Include="include\resource_dir.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\HexGenerator.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\PCG.cpp" />
   </ItemGroup>
