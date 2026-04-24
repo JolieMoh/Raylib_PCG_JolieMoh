@@ -69,8 +69,8 @@ Color PCG::TileMap::GetTileColor(PCG::TileType _tileType) const {
     switch (_tileType) {
     case PCG::TileType::TILE_TYPE_PLATFORM:
         return PLATFORM_COLOR;
-    case TILE_TYPE_GROUND:
-        return GROUND_COLOR;
+    case TILE_TYPE_ABYSS:
+        return ABYSS_COLOR;
     default:
         return UNKNOWN_COLOR;
     }
@@ -107,8 +107,8 @@ char PCG::TileMap::GetTileChar(PCG::TileType _tileType) const {
     switch (_tileType) {
     case PCG::TileType::TILE_TYPE_PLATFORM:
         return PCG::PLATFORM_CHAR;
-    case PCG::TileType::TILE_TYPE_GROUND:
-        return PCG::GROUND_CHAR;
+    case PCG::TileType::TILE_TYPE_ABYSS:
+        return PCG::ABYSS_CHAR;
     default:
         return '?';
     }
@@ -166,8 +166,8 @@ void PCG::TileMap::LoadMapData(const char* _filename) {
             if (ch == PCG::PLATFORM_CHAR) {
                 tileArray[y][x] = PCG::TileType::TILE_TYPE_PLATFORM;
             }
-            else if (ch == PCG::GROUND_CHAR) {
-                tileArray[y][x] = PCG::TileType::TILE_TYPE_GROUND;
+            else if (ch == PCG::ABYSS_CHAR) {
+                tileArray[y][x] = PCG::TileType::TILE_TYPE_ABYSS;
             }
         }
     }
@@ -304,7 +304,7 @@ void PCG::NoiseMapGenerator::Generate(TileType _tileArray[MAP_ROWS][MAP_COLUMNS]
 
             // Threshold: Dark spots are Rock, Light spots are Grass
             if (brightness < 0.5f) {
-                _tileArray[y][x] = TILE_TYPE_GROUND;
+                _tileArray[y][x] = TILE_TYPE_ABYSS;
             }
             else {
                 _tileArray[y][x] = TILE_TYPE_PLATFORM;

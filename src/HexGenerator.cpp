@@ -1,413 +1,426 @@
 #include "HexGenerator.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include "raygui.h"  // Raylib's UI library (buttons, sliders, etc)
+#include <fstream>   // File stream - for reading/writing files
+#include <iostream>  // For console output (cout)
+#include <cmath>     // Math functions (sin, cos, sqrt)
 
-HexGridGenerator::HexGridGenerator():
-    gridWidth(15), gridHeight(15), hexRadius(1.0f), hexSpacing(1.8f),
-    noiseScale(0.15f), platformThreshold(0.55f), levelsBeforeAbyss(1),
-    rng(std::random_device{}()) {
-    InitializeGrid(gridWidth, gridHeight);
+// CONSTRUCTOR - Sets up default values when we create the generator
+HexGridGenerator::HexGridGenerator()
+    : gridRadius(8),           // 8 hexes from center = ~17 hexes wide total
+    maxLevels(5),            // Can stack up to 5 floors
+    hexRadius(1.0f),         // Each hex is 1 unit wide
+    hexSpacing(1.8f),        // 1.8 units between centers (gives slight gap)
+    noiseScale(0.15f),       // Noise 15% zoom - creates decent sized clusters
+    platformThreshold(0.55f), // 55% chance of platform at any point
+    levelsBeforeAbyss(3),    // Start with 3 floors
+    rng(std::random_device{}()) {  // Seed the random generator with unpredictable value
+    InitializeGrid(gridRadius, maxLevels);  // Create the empty grid structure
 }
 
+// DESTRUCTOR - Nothing to clean up because vectors manage their own memory
 HexGridGenerator::~HexGridGenerator() {
-    // Vector handles cleanup automatically
+    // The grid vector will automatically destroy itself
+    // This is called "RAII" - Resource Acquisition Is Initialization
+    // The vector's destructor runs automatically when this object dies
 }
 
-void HexGridGenerator::InitializeGrid(int width, int height) {
-    gridWidth = width;
-    gridHeight = height;
-    grid.assign(gridHeight, std::vector<HexTile>(gridWidth));
+// Creates the empty grid structure with the right dimensions
+void HexGridGenerator::InitializeGrid(int radius, int maxStackLevels) {
+    gridRadius = radius;               // Store for later use
+    maxLevels = maxStackLevels;        // Store max floors
 
-    // Initialize positions
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            grid[r][q].worldPosition = HexToWorld(q, r, 0.0f);
+    // Calculate size: radius 8 means coordinates from -8 to +8 = 17 possible positions
+    int gridSize = 2 * radius + 1;     // Example: 2*8+1 = 17
+
+    // RESIZE creates the 3D structure:
+    // grid[FLOORS][ROWS][COLUMNS]
+    grid.assign(maxLevels,
+        std::vector<std::vector<HexTile>>(gridSize,
+            std::vector<HexTile>(gridSize)));
+
+    // Now calculate the world position for every possible hex
+    // We do this once at start so we don't recalculate every frame
+    for (int level = 0; level < maxLevels; level++) {           // For each floor
+        for (int r = -gridRadius; r <= gridRadius; r++) {       // For each row
+            for (int q = -gridRadius; q <= gridRadius; q++) {   // For each column
+                if (IsWithinCircle(q, r)) {  // Only if inside our circular arena
+                    // Convert array indices from world coordinates (-8..8) to array indices (0..16)
+                    int rowIdx = r + gridRadius;     // Example: -8 + 8 = 0 (first row)
+                    int colIdx = q + gridRadius;     // Example: 8 + 8 = 16 (last column)
+
+                    // Store the 3D world position
+                    // Each level is 1.2 units below the level above it
+                    grid[level][rowIdx][colIdx].worldPosition = HexToWorld(q, r, -level * 1.2f);
+                    grid[level][rowIdx][colIdx].level = level;
+                }
+            }
         }
     }
 }
 
-Vector3 HexToWorldCube(int q, int r) {
-    // Convert axial coordinates to world position
-    float x = (q + r * 0.5f) * 1.8f;
-    float z = r * 1.56f;
-    return { x, 0, z };
-}
-
+// Converts axial grid coordinates (q, r) to 3D world coordinates (x, y, z)
 Vector3 HexGridGenerator::HexToWorld(int q, int r, float yOffset) {
-    // Axial coordinates to world space
-    float x = (q + r * 0.5f) * hexSpacing;
-    float z = r * (hexRadius * 1.732f);  // sqrt(3) * radius
-    return { x, yOffset, z };
+    // Math for hex grid layout:
+    // q moves horizontally, r moves diagonally
+    // This formula creates perfectly tessellating hexagons
+    float x = (q + r * 0.5f) * hexSpacing;        // X coordinate
+    float z = r * (hexRadius * 1.732f);            // Z coordinate (1.732 = sqrt(3))
+    return { x, yOffset, z };                        // Return as Vector3 (X,Y,Z)
 }
 
-void HexGridGenerator::GeneratePerlinNoiseMap() { //why not use raylib's perlin noise gen?
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+// Checks if a hex coordinate is within our circular arena
+// Uses CUBE COORDINATES - a different way to represent hex grids that makes circle math easy
+bool HexGridGenerator::IsWithinCircle(int q, int r) {
+    // Convert axial (q,r) to cube coordinates (x,y,z)
+    // Cube coordinates have the property that x+y+z = 0 always
+    // This makes distance calculation simple: distance = max(|x|,|y|,|z|)
+    float x = q;                    // X coordinate in cube space
+    float z = r;                    // Z coordinate in cube space
+    float y = -x - z;               // Y is derived (must sum to zero)
 
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            // Perlin-like noise using sin/cos combinations
-            float noise = 0.0f;
-            float freq = noiseScale;
+    // Calculate Manhattan distance in cube space
+    float distance = std::sqrt(x * x + y * y + z * z);
 
-            for (int octave = 0; octave < 3; octave++) {
-                noise += sin(q * freq + r * freq * 0.866f) * cos(r * freq - q * freq * 0.5f);
-                noise += 0.5f * sin(q * freq * 2.4f + 1.2f) * cos(r * freq * 2.1f);
-                freq *= 2.0f;
-            }
+    // Return TRUE if within radius, FALSE if outside
+    return distance <= gridRadius;
+}
 
-            noise = (noise + 2.0f) / 4.0f; // Normalize to [0,1]
+// ===== ALGORITHM 1: RANDOM WALK =====
+void HexGridGenerator::GenerateRandomWalk(int steps) {
+    ClearGrid();
 
-            // Apply levels before abyss logic
-            if (noise > platformThreshold) {
-                grid[r][q].type = TileType::PLATFORM;
+    // Generate each level independently
+    for (int level = 0; level < levelsBeforeAbyss; level++) {
+        // Directions on a hex grid (6 possible moves)
+        // Each move changes q and r coordinates
+        int currentQ = 0;  // Start at center
+        int currentR = 0;  // Start at center
+
+        // Take 'steps' number of steps
+        for (int step = 0; step < steps; step++) {
+            // Only place tile if we're inside the circle
+            if (IsWithinCircle(currentQ, currentR)) {
+                int rowIdx = currentR + gridRadius;
+                int colIdx = currentQ + gridRadius;
+                grid[level][rowIdx][colIdx].type = TileType::PLATFORM;
+
+                // Pick a random direction (0-5) for the next step
+                int dir = std::uniform_int_distribution<int>(0, 5)(rng);
+                switch (dir) {
+                case 0: currentQ++; break;           // Move right
+                case 1: currentQ--; break;           // Move left
+                case 2: currentR++; break;           // Move down-right
+                case 3: currentR--; break;           // Move up-left
+                case 4: currentQ++; currentR--; break; // Move up-right
+                case 5: currentQ--; currentR++; break; // Move down-left
+                }
             }
             else {
-                // Multiple levels of platforms before abyss
-                // This creates tiers - top platforms, then lower platforms, then abyss
-                if (levelsBeforeAbyss > 1 && noise > platformThreshold - 0.3f) {
-                    // Intermediate level
-                    grid[r][q].type = TileType::PLATFORM;
-                    grid[r][q].worldPosition.y = -1.5f; // Lower tier
-                }
-                else {
-                    grid[r][q].type = TileType::EMPTY;
-                    grid[r][q].worldPosition.y = -5.0f; // Abyss
-                }
+                // Fell out of bounds - teleport back to center
+                currentQ = 0;
+                currentR = 0;
             }
         }
     }
 }
 
-void HexGridGenerator::GenerateRandomWalk(int steps) {
-    // Clear grid first
-    for (auto& row : grid) {
-        for (auto& tile : row) {
-            tile.type = TileType::EMPTY;
-        }
-    }
-
-    std::uniform_int_distribution<int> dirDist(0, 5);
-    int currentX = gridWidth / 2;
-    int currentY = gridHeight / 2;
-
-    for (int step = 0; step < steps; step++) {
-        if (currentX >= 0 && currentX < gridWidth && currentY >= 0 && currentY < gridHeight) {
-            grid[currentY][currentX].type = TileType::PLATFORM;
-
-            // Random direction (hex grid has 6 directions)
-            int dir = dirDist(rng);
-            switch (dir) {
-            case 0: currentX++; break;
-            case 1: currentX--; break;
-            case 2: currentY++; break;
-            case 3: currentY--; break;
-            case 4: currentX++; currentY++; break;
-            case 5: currentX--; currentY--; break;
-            }
-        }
-        else {
-            // Reset to center if out of bounds
-            currentX = gridWidth / 2;
-            currentY = gridHeight / 2;
-        }
-    }
-
-    // Apply levels before abyss
-    SetLevelsBeforeAbyss(levelsBeforeAbyss);
-}
-
+// ===== ALGORITHM 2: CELLULAR AUTOMATA (Game of Life) =====
 void HexGridGenerator::GenerateCellularAutomata(int iterations) {
-    // Random initialization with 45% platform chance
-    std::uniform_int_distribution<int> dist(0, 100);
+    ClearGrid();
 
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            grid[r][q].type = (dist(rng) < 45) ? TileType::PLATFORM : TileType::EMPTY;
+    for (int level = 0; level < levelsBeforeAbyss; level++) {
+        // First, create a temporary grid for this level
+        int gridSize = 2 * gridRadius + 1;
+        std::vector<std::vector<TileType>> levelGrid(
+            gridSize, std::vector<TileType>(gridSize, TileType::EMPTY));
+
+        // RANDOM INITIALIZATION - 45% chance of being a platform
+        for (int r = -gridRadius; r <= gridRadius; r++) {
+            for (int q = -gridRadius; q <= gridRadius; q++) {
+                if (IsWithinCircle(q, r)) {
+                    int rowIdx = r + gridRadius;
+                    int colIdx = q + gridRadius;
+                    // 45% chance of platform, 55% chance empty
+                    bool isPlatform = (std::uniform_int_distribution<int>(0, 100)(rng) < 45);
+                    levelGrid[rowIdx][colIdx] = isPlatform ? TileType::PLATFORM : TileType::EMPTY;
+                }
+            }
         }
-    }
 
-    // Apply cellular automata rules
-    for (int iter = 0; iter < iterations; iter++) {
-        auto newGrid = grid;
+        // Apply rules multiple times (iterations)
+        for (int iter = 0; iter < iterations; iter++) {
+            // Create a copy to store the NEXT generation
+            auto newGrid = levelGrid;
 
-        for (int r = 0; r < gridHeight; r++) {
-            for (int q = 0; q < gridWidth; q++) {
-                int wallCount = 0;
+            for (int r = -gridRadius; r <= gridRadius; r++) {
+                for (int q = -gridRadius; q <= gridRadius; q++) {
+                    if (!IsWithinCircle(q, r)) continue;
 
-                // Check neighbors
-                for (int dr = -1; dr <= 1; dr++) {
-                    for (int dq = -1; dq <= 1; dq++) {
-                        if (dr == 0 && dq == 0) continue;
+                    int rowIdx = r + gridRadius;
+                    int colIdx = q + gridRadius;
 
-                        int nr = r + dr;
+                    // Count how many neighboring tiles are walls
+                    int wallCount = 0;
+
+                    // The 6 neighbors on a hex grid
+                    // Each pair is (deltaQ, deltaR)
+                    std::vector<std::pair<int, int>> neighbors = {
+                        {1,0},   // Right
+                        {-1,0},  // Left
+                        {0,1},   // Down-Right
+                        {0,-1},  // Up-Left
+                        {1,-1},  // Up-Right
+                        {-1,1}   // Down-Left
+                    };
+
+                    // Check each neighbor
+                    for (auto& [dq, dr] : neighbors) {
                         int nq = q + dq;
+                        int nr = r + dr;
 
-                        if (nr >= 0 && nr < gridHeight && nq >= 0 && nq < gridWidth) {
-                            if (grid[nr][nq].type == TileType::PLATFORM) {
+                        if (IsWithinCircle(nq, nr)) {
+                            int nRowIdx = nr + gridRadius;
+                            int nColIdx = nq + gridRadius;
+                            if (levelGrid[nRowIdx][nColIdx] == TileType::PLATFORM) {
                                 wallCount++;
                             }
                         }
                         else {
-                            wallCount++; // Border counts as wall
+                            // Out of bounds counts as a wall (border makes caves feel enclosed)
+                            wallCount++;
                         }
                     }
-                }
 
-                // Apply rules: birth if exactly 5 neighbors, death if less than 3
-                if (grid[r][q].type == TileType::PLATFORM) {
-                    newGrid[r][q].type = (wallCount < 3) ? TileType::EMPTY : TileType::PLATFORM;
+                    // CELLULAR AUTOMATA RULES:
+                    // 1. If a wall has less than 2 neighbors, it dies (erosion)
+                    // 2. If an empty space has more than 4 neighbors, it becomes a wall (infill)
+                    if (levelGrid[rowIdx][colIdx] == TileType::PLATFORM) {
+                        newGrid[rowIdx][colIdx] = (wallCount < 2) ? TileType::EMPTY : TileType::PLATFORM;
+                    }
+                    else {
+                        newGrid[rowIdx][colIdx] = (wallCount > 4) ? TileType::PLATFORM : TileType::EMPTY;
+                    }
                 }
-                else {
-                    newGrid[r][q].type = (wallCount > 5) ? TileType::PLATFORM : TileType::EMPTY;
+            }
+
+            levelGrid = newGrid;  // Move to next generation
+        }
+
+        // Copy the final result to our main grid
+        for (int r = -gridRadius; r <= gridRadius; r++) {
+            for (int q = -gridRadius; q <= gridRadius; q++) {
+                if (IsWithinCircle(q, r)) {
+                    int rowIdx = r + gridRadius;
+                    int colIdx = q + gridRadius;
+                    grid[level][rowIdx][colIdx].type = levelGrid[rowIdx][colIdx];
                 }
             }
         }
-
-        grid = newGrid;
     }
-
-    SetLevelsBeforeAbyss(levelsBeforeAbyss);
 }
 
+void HexGridGenerator::Regenerate() {
+    //nth
+
+}
+
+// Changes how many floors exist and regenerates the level
 void HexGridGenerator::SetLevelsBeforeAbyss(int levels) {
-    levelsBeforeAbyss = std::max(1, levels);
-
-    // Adjust platform heights based on levels
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            if (grid[r][q].type == TileType::PLATFORM) {
-                // Distribute platforms across levels
-                float levelHeight = 0.0f;
-                if (levelsBeforeAbyss == 1) {
-                    levelHeight = 0.0f;
-                }
-                else {
-                    // Create terraced platforms
-                    int level = (r + q) % levelsBeforeAbyss;
-                    levelHeight = -level * 1.2f;
-                }
-                grid[r][q].worldPosition.y = levelHeight;
-            }
-            else {
-                grid[r][q].worldPosition.y = -3.0f - (levelsBeforeAbyss * 0.5f);
-            }
-        }
-    }
+    levelsBeforeAbyss = std::max(1, std::min(levels, maxLevels));  // Clamp between 1 and max
+   Regenerate();  // Create new level with new floor count
 }
 
+// Draws the entire 3D scene
 void HexGridGenerator::Render3D(const Camera3D& camera) {
-    BeginMode3D(camera);
+    BeginMode3D(camera);  // Start 3D drawing mode
 
-    // Draw grid
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            const auto& tile = grid[r][q];
-            Color color;
+    // ===== DRAW THE BOTTOM ABYSS PLANE =====
+    // This is a large flat rectangle that spans the entire arena bottom
+    float floorSize = (gridRadius * 2 * hexSpacing) + 5.0f;  // Slightly bigger than the hex grid
 
-            switch (tile.type) {
-            case TileType::PLATFORM:
-                color = tile.isSelected ? GREEN : YELLOW;
-                break; 
-            case TileType::EMPTY:
-                color = DARKGRAY;
-                break;
-            }
+    // Purple plane represents the "abyss" - players fall to their death here
+    DrawPlane({ 0, -levelsBeforeAbyss * 1.5f - 1.0f, 0 }, { floorSize, floorSize }, DARKPURPLE);
+    // Black plane below it creates depth (you can't see past it)
+    DrawPlane({ 0, -levelsBeforeAbyss * 1.5f - 1.05f, 0 }, { floorSize, floorSize }, BLACK);
 
-            // Draw hexagon (using cylinder approximation)
-            DrawCylinder(tile.worldPosition, hexRadius, hexRadius, 0.2f, 6, color);
+    // ===== DRAW ALL PLATFORMS (all levels) =====
+    for (int level = 0; level < levelsBeforeAbyss; level++) {
+        for (int r = -gridRadius; r <= gridRadius; r++) {
+            for (int q = -gridRadius; q <= gridRadius; q++) {
+                if (!IsWithinCircle(q, r)) continue;  // Skip outside circle
 
-            // Draw outline
-            DrawCylinderWires(tile.worldPosition, hexRadius, hexRadius, 0.21f, 6, BLACK);
+                int rowIdx = r + gridRadius;
+                int colIdx = q + gridRadius;
 
-            // Draw selection indicator
-            if (tile.isSelected) {
-                DrawCylinder({ tile.worldPosition.x, tile.worldPosition.y + 0.3f, tile.worldPosition.z },
-                    hexRadius + 0.05f, hexRadius + 0.05f, 0.05f, 6, { 255,255,0,100 });
+                const auto& tile = grid[level][rowIdx][colIdx];
+                if (tile.type == TileType::EMPTY) continue;  // Don't draw empty tiles
+
+                // COLOR LOGIC: Yellow for normal platforms, Red for hazards
+                Color color = (tile.type == TileType::HAZARD) ? RED : YELLOW;
+
+                // DrawCylinder draws a 3D cylinder (perfect for hexagons with 6 sides!)
+                // Parameters: position, radiusTop, radiusBottom, height, sides, color
+                DrawCylinder(tile.worldPosition, hexRadius, hexRadius, 0.2f, 6, color);
+
+                // Draw wireframe outline so edges are visible
+                DrawCylinderWires(tile.worldPosition, hexRadius, hexRadius, 0.21f, 6, BLACK);
+
+                // Draw selection glow (semi-transparent cylinder above the platform)
+                if (tile.isSelected) {
+                    DrawCylinder({ tile.worldPosition.x, tile.worldPosition.y + 0.3f, tile.worldPosition.z },
+                        hexRadius + 0.05f, hexRadius + 0.05f, 0.05f, 6, { 255,165,0,150 });
+                }
             }
         }
     }
 
-    // Draw abyss effect (fog-like)
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), { 0,0,0,50 });
-
-    EndMode3D();
+    EndMode3D();  // Stop 3D drawing mode
 }
 
+// Draws all the UI buttons and sliders using RayGUI
 void HexGridGenerator::RenderUI() {
-    // Panel background
-    DrawRectangle(10, 10, 300, 400, { 50,50,50,200 });
-    DrawRectangleLines(10, 10, 300, 400, WHITE);
+    // GuiPanel creates a semi-transparent background box for our UI
+    Rectangle panel = { 10, 10, 320, 500 };
+    GuiPanel(panel, "The Construct - Level Generator");
 
-    int yOffset = 30;
-    int lineHeight = 35;
+    int yOffset = 50;  // Starting Y position for first UI element
 
-    // Title
-    DrawText("The Construct - Level Generator", 20, yOffset, 20, WHITE);
-    yOffset += lineHeight;
+    // LEVELS SLIDER - Your requested feature!
+    GuiLabel({ 20, (float)yOffset, 200, 20 }, TextFormat("Levels Before Abyss: %d", levelsBeforeAbyss));
+    yOffset += 25;
 
-    // Levels before abyss slider - YOUR REQUESTED FEATURE
-    DrawText(TextFormat("Levels Before Abyss: %d", levelsBeforeAbyss), 20, yOffset, 16, WHITE);
-    yOffset += 20;
+    // Slider lets user choose between 1 and maxLevels
+    float sliderValue = (levelsBeforeAbyss - 1) / (float)(maxLevels - 1);
+    GuiSlider({ 20, (float)yOffset, 280, 20 }, "1", TextFormat("%d", maxLevels), &sliderValue, 1, maxLevels);
 
-    Rectangle sliderRect = { 20, (float)yOffset, 260, 10 };
-    int mouseX = GetMouseX();
-    int mouseY = GetMouseY();
-
-    DrawRectangleRec(sliderRect, GRAY);
-    float sliderPos = (levelsBeforeAbyss - 1) / 4.0f; // Max 5 levels
-    DrawRectangle(sliderRect.x + sliderRect.width * sliderPos - 5, sliderRect.y - 5, 10, 20, WHITE);
-
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) &&
-        CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, sliderRect)) {
-        float newPos = (mouseX - sliderRect.x) / sliderRect.width;
-        levelsBeforeAbyss = 1 + (int)(newPos * 4);
-        levelsBeforeAbyss = std::clamp(levelsBeforeAbyss, 1, 5);
-        Regenerate();
+    // Convert slider position back to actual level count
+    int newLevels = 1 + (int)(sliderValue * (maxLevels - 1));
+    if (newLevels != levelsBeforeAbyss) {
+        SetLevelsBeforeAbyss(newLevels);  // Update and regenerate
     }
 
-    yOffset += 30;
+    yOffset += 40;  // Space between elements
 
-    // Regenerate button
-    Rectangle regenBtn = { 20, (float)yOffset, 120, 30 };
-    DrawRectangleRec(regenBtn, BLUE);
-    DrawText("REGENERATE", 30, yOffset + 8, 16, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, regenBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        Regenerate();
+    // REGENERATE BUTTON
+    if (GuiButton({ 20, (float)yOffset, 280, 30 }, "REGENERATE")) {
+        //Regenerate();  // Create new level with same settings
     }
 
     yOffset += 45;
 
-    // Generation algorithms
-    DrawText("Generation Algorithms:", 20, yOffset, 16, WHITE);
+    // GENERATION ALGORITHMS SECTION
+    GuiLabel({ 20, (float)yOffset, 200, 20 }, "Generation Algorithms:");
     yOffset += 25;
 
-    // Perlin Noise button
-    Rectangle perlinBtn = { 20, (float)yOffset, 130, 25 };
-    DrawRectangleRec(perlinBtn, DARKGREEN);
-    DrawText("Perlin Noise", 30, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, perlinBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        GeneratePerlinNoiseMap();
-    }
-
     // Random Walk button
-    Rectangle walkBtn = { 160, (float)yOffset, 130, 25 };
-    DrawRectangleRec(walkBtn, DARKPURPLE);
-    DrawText("Random Walk", 170, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, walkBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (GuiButton({ 160, (float)yOffset, 130, 25 }, "Random Walk")) {
         GenerateRandomWalk(200);
     }
 
     yOffset += 35;
 
     // Cellular Automata button
-    Rectangle cellularBtn = { 20, (float)yOffset, 130, 25 };
-    DrawRectangleRec(cellularBtn, MAROON);
-    DrawText("Cellular Auto", 30, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, cellularBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (GuiButton({ 20, (float)yOffset, 130, 25 }, "Cellular Auto")) {
         GenerateCellularAutomata(5);
     }
 
     // Clear button
-    Rectangle clearBtn = { 160, (float)yOffset, 130, 25 };
-    DrawRectangleRec(clearBtn, DARKGRAY);
-    DrawText("Clear All", 170, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, clearBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (GuiButton({ 160, (float)yOffset, 130, 25 }, "Clear All")) {
         ClearGrid();
     }
 
     yOffset += 45;
 
-    // File I/O buttons
-    DrawText("Save/Load:", 20, yOffset, 16, WHITE);
+    // SAVE/LOAD SECTION
+    GuiLabel({ 20, (float)yOffset, 200, 20 }, "Save/Load:");
     yOffset += 25;
 
-    Rectangle saveBtn = { 20, (float)yOffset, 120, 25 };
-    DrawRectangleRec(saveBtn, GREEN);
-    DrawText("SAVE", 60, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, saveBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (GuiButton({ 20, (float)yOffset, 130, 25 }, "SAVE")) {
         SaveToFile("level_data.bin");
     }
 
-    Rectangle loadBtn = { 150, (float)yOffset, 120, 25 };
-    DrawRectangleRec(loadBtn, ORANGE);
-    DrawText("LOAD", 190, yOffset + 5, 14, WHITE);
-
-    if (CheckCollisionPointRec({ (float)mouseX, (float)mouseY }, loadBtn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (GuiButton({ 160, (float)yOffset, 130, 25 }, "LOAD")) {
         LoadFromFile("level_data.bin");
     }
 
-    yOffset += 40;
+    yOffset += 45;
 
-    // Paint mode NOT SURE IF I WANT IT
-    /*
-    DrawText("Paint Mode:", 20, yOffset, 16, WHITE);
-    yOffset += 25;
-
-    // Platform paint button
-    Rectangle platformPaint = { 20, (float)yOffset, 120, 25 };
-    DrawRectangleRec(platformPaint, GREEN);
-    DrawText("Platform", 55, yOffset + 5, 14, WHITE);
-
-    // Erase button
-    Rectangle erasePaint = { 20, (float)yOffset + 35, 120, 25 };
-    DrawRectangleRec(erasePaint, DARKGRAY);
-    DrawText("Erase", 55, yOffset + 40, 14, WHITE);
-
-    // Instructions
-    DrawText("Click on platforms to edit", 20, yOffset + 80, 14, YELLOW); */
-    DrawText("Use mouse to rotate camera", 20, yOffset + 100, 14, YELLOW);
+    // INSTRUCTIONS
+    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Controls:");
+    yOffset += 20;
+    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Right-click + Drag: Pan camera");
+    yOffset += 20;
+    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Alt + Drag: Orbit camera");
+    yOffset += 20;
+    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Scroll: Zoom in/out");
+    yOffset += 20;
+    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Click on platforms to toggle");
 }
 
-void HexGridGenerator::SetTile(int x, int y, TileType type) {
-    if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
-        grid[y][x].type = type;
-    }
-}
-
-TileType HexGridGenerator::GetTile(int x, int y) const {
-    if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
-        return grid[y][x].type;
-    }
-    return TileType::EMPTY;
-}
-
-void HexGridGenerator::ClearGrid() {
-    for (auto& row : grid) {
-        for (auto& tile : row) {
-            tile.type = TileType::EMPTY;
-            tile.worldPosition.y = -3.0f;
+// Manual editing - change a specific tile
+void HexGridGenerator::SetTile(int level, int x, int y, TileType type) {
+    // Validate coordinates (prevent crashes from bad input)
+    if (level >= 0 && level < levelsBeforeAbyss) {
+        int rowIdx = y + gridRadius;
+        int colIdx = x + gridRadius;
+        if (rowIdx >= 0 && rowIdx < 2 * gridRadius + 1 &&
+            colIdx >= 0 && colIdx < 2 * gridRadius + 1) {
+            grid[level][rowIdx][colIdx].type = type;
         }
     }
 }
 
-void HexGridGenerator::Regenerate() {
-    // Default to Perlin noise for regeneration
-    GeneratePerlinNoiseMap();
+// Get tile type (with safety checks)
+TileType HexGridGenerator::GetTile(int level, int x, int y) const {
+    if (level >= 0 && level < levelsBeforeAbyss) {
+        int rowIdx = y + gridRadius;
+        int colIdx = x + gridRadius;
+        if (rowIdx >= 0 && rowIdx < 2 * gridRadius + 1 &&
+            colIdx >= 0 && colIdx < 2 * gridRadius + 1) {
+            return grid[level][rowIdx][colIdx].type;
+        }
+    }
+    return TileType::EMPTY;  // Return empty if invalid
 }
 
+// Erase everything
+void HexGridGenerator::ClearGrid() {
+    for (int level = 0; level < maxLevels; level++) {
+        for (auto& row : grid[level]) {
+            for (auto& tile : row) {
+                tile.type = TileType::EMPTY;
+            }
+        }
+    }
+}
+
+// ===== FILE I/O - Save level to disk =====
 bool HexGridGenerator::SaveToFile(const std::string& filename) {
+    // Open file for binary writing
+    // std::ios::binary means "write raw bytes, not text"
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) return false;
 
-    // Write header
-    int version = 1;
+    // Write HEADER first (this defines what version of the file format we're using)
+    int version = 2;  // Version 2 = format with circular arena and level stacking
     file.write(reinterpret_cast<char*>(&version), sizeof(version));
-    file.write(reinterpret_cast<char*>(&gridWidth), sizeof(gridWidth));
-    file.write(reinterpret_cast<char*>(&gridHeight), sizeof(gridHeight));
+    file.write(reinterpret_cast<char*>(&gridRadius), sizeof(gridRadius));
+    file.write(reinterpret_cast<char*>(&maxLevels), sizeof(maxLevels));
     file.write(reinterpret_cast<char*>(&levelsBeforeAbyss), sizeof(levelsBeforeAbyss));
 
-    // Write grid data
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            int type = static_cast<int>(grid[r][q].type);
-            file.write(reinterpret_cast<char*>(&type), sizeof(type));
+    // Write the actual GRID DATA
+    // Only save tiles that are inside the circle
+    for (int level = 0; level < levelsBeforeAbyss; level++) {
+        for (int r = 0; r < 2 * gridRadius + 1; r++) {
+            for (int q = 0; q < 2 * gridRadius + 1; q++) {
+                // Convert array index back to world coordinate to check circle
+                int worldQ = q - gridRadius;
+                int worldR = r - gridRadius;
+                if (IsWithinCircle(worldQ, worldR)) {
+                    int type = static_cast<int>(grid[level][r][q].type);
+                    file.write(reinterpret_cast<char*>(&type), sizeof(type));
+                }
+            }
         }
     }
 
@@ -416,35 +429,41 @@ bool HexGridGenerator::SaveToFile(const std::string& filename) {
     return true;
 }
 
+// ===== FILE I/O - Load level from disk =====
 bool HexGridGenerator::LoadFromFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) return false;
 
     // Read header
-    int version, width, height, levels;
+    int version, radius, maxLvls, levels;
     file.read(reinterpret_cast<char*>(&version), sizeof(version));
-    file.read(reinterpret_cast<char*>(&width), sizeof(width));
-    file.read(reinterpret_cast<char*>(&height), sizeof(height));
+    file.read(reinterpret_cast<char*>(&radius), sizeof(radius));
+    file.read(reinterpret_cast<char*>(&maxLvls), sizeof(maxLvls));
     file.read(reinterpret_cast<char*>(&levels), sizeof(levels));
 
-    if (width != gridWidth || height != gridHeight) {
-        InitializeGrid(width, height);
+    // If saved grid is different size, reinitialize
+    if (radius != gridRadius || maxLvls != maxLevels) {
+        InitializeGrid(radius, maxLvls);
     }
 
     levelsBeforeAbyss = levels;
 
     // Read grid data
-    for (int r = 0; r < gridHeight; r++) {
-        for (int q = 0; q < gridWidth; q++) {
-            int type;
-            file.read(reinterpret_cast<char*>(&type), sizeof(type));
-            grid[r][q].type = static_cast<TileType>(type);
-            grid[r][q].worldPosition = HexToWorld(q, r, 0);
+    for (int level = 0; level < levelsBeforeAbyss; level++) {
+        for (int r = 0; r < 2 * gridRadius + 1; r++) {
+            for (int q = 0; q < 2 * gridRadius + 1; q++) {
+                int worldQ = q - gridRadius;
+                int worldR = r - gridRadius;
+                if (IsWithinCircle(worldQ, worldR)) {
+                    int type;
+                    file.read(reinterpret_cast<char*>(&type), sizeof(type));
+                    grid[level][r][q].type = static_cast<TileType>(type);
+                }
+            }
         }
     }
 
     file.close();
-    SetLevelsBeforeAbyss(levelsBeforeAbyss);
     std::cout << "Level loaded from " << filename << std::endl;
     return true;
 }

@@ -1,26 +1,29 @@
 #pragma once
 #include "raylib.h"
+#include <vector>       // C++ dynamic arrays (like TArray in Unreal)
+#include <string>       // For file names
+#include <random>       // For random number generation
 
 namespace PCG {
     // Screen & Map Dimensions
-    constexpr int SCREEN_WIDTH = 1024;
-    constexpr int SCREEN_HEIGHT = 1024;
+    constexpr int SCREEN_WIDTH = 1920;
+    constexpr int SCREEN_HEIGHT = 1080;
     constexpr int TILE_SIZE = 3;
     constexpr int MAP_COLUMNS = (SCREEN_WIDTH / TILE_SIZE);
-    constexpr int MAP_ROWS = (SCREEN_HEIGHT / TILE_SIZE);
-
-    // Tile Types (Using Enum for readability)
+    constexpr int MAP_ROWS = (SCREEN_HEIGHT / TILE_SIZE); 
+    
+    // Tile Types (Using Enum for readability) - like a dropdown in Blueprints where you pick from named options
     typedef enum {
         TILE_TYPE_PLATFORM  = 0,
-        TILE_TYPE_GROUND = 1,
+        TILE_TYPE_ABYSS = 1,
         TILE_COUNT  // Automatically counts total types
     } TileType;
 
     // Visual & Character settings
     constexpr char PLATFORM_CHAR = '.';
-    constexpr char GROUND_CHAR = '#';
+    constexpr char ABYSS_CHAR = '#';
     constexpr Color PLATFORM_COLOR = YELLOW;
-    constexpr Color GROUND_COLOR = RED;
+    constexpr Color ABYSS_COLOR = PURPLE;
     constexpr Color UNKNOWN_COLOR = WHITE;
 
     // UI variable defines used to position buttons on screen
@@ -31,8 +34,8 @@ namespace PCG {
     constexpr Rectangle RESET_BUTTON_BOUNDS = { BUTTON_X, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT };
 
     // File Names
-    constexpr char* MAP_TEXT_FILENAME = "pcg_map_data.txt";
-    constexpr char* MAP_IMAGE_FILENAME = "pcg_map.png";
+    constexpr char* MAP_TEXT_FILENAME = "Hex_map_data.txt";
+    constexpr char* MAP_IMAGE_FILENAME = "Hex_map.png";
 
     // Pure Virtual Class
     class MapGenerator {
@@ -85,7 +88,7 @@ namespace PCG {
         MapGenerator* GetMapGenerator() const;
 
         // public tile array, for convenience but ideally hidden as private later
-        TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_GROUND };  // 2D array to hold tile types for the map
+        TileType tileArray[MAP_ROWS][MAP_COLUMNS] = { PCG::TileType::TILE_TYPE_ABYSS };  // 2D array to hold tile types for the map
 
     private:
         MapGenerator* mapGenerator;
