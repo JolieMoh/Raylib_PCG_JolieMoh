@@ -2,17 +2,18 @@
 #include "raygui.h"  // Raylib's UI library (buttons, sliders, etc)
 #include <fstream>   // File stream - for reading/writing files
 #include <iostream>  // For console output (cout)
+#include "raymath.h"     
 #include <cmath>     // Math functions (sin, cos, sqrt)
 
 // CONSTRUCTOR - Sets up default values when we create the generator
 HexGridGenerator::HexGridGenerator()
-    : gridRadius(8),           // 8 hexes from center = ~17 hexes wide total
+    : gridRadius(8),         // 8 hexes from center = ~17 hexes wide total
     maxLevels(5),            // Can stack up to 5 floors
     hexRadius(1.0f),         // Each hex is 1 unit wide
-    hexSpacing(1.8f),        // 1.8 units between centers (gives slight gap)
+    hexSpacing(1.8f),        // Gives slight gap
     noiseScale(0.15f),       // Noise 15% zoom - creates decent sized clusters
     platformThreshold(0.55f), // 55% chance of platform at any point
-    levelsBeforeAbyss(3),    // Start with 3 floors
+    levelsBeforeAbyss(1),    // Start with 1 floors
     rng(std::random_device{}()) {  // Seed the random generator with unpredictable value
     InitializeGrid(gridRadius, maxLevels);  // Create the empty grid structure
 }
@@ -20,8 +21,6 @@ HexGridGenerator::HexGridGenerator()
 // DESTRUCTOR - Nothing to clean up because vectors manage their own memory
 HexGridGenerator::~HexGridGenerator() {
     // The grid vector will automatically destroy itself
-    // This is called "RAII" - Resource Acquisition Is Initialization
-    // The vector's destructor runs automatically when this object dies
 }
 
 // Creates the empty grid structure with the right dimensions
@@ -219,15 +218,10 @@ void HexGridGenerator::GenerateCellularAutomata(int iterations) {
     }
 }
 
-void HexGridGenerator::Regenerate() {
-    //nth
-
-}
-
 // Changes how many floors exist and regenerates the level
 void HexGridGenerator::SetLevelsBeforeAbyss(int levels) {
     levelsBeforeAbyss = std::max(1, std::min(levels, maxLevels));  // Clamp between 1 and max
-   Regenerate();  // Create new level with new floor count
+    Regenerate();  // Create new level with new floor count
 }
 
 // Draws the entire 3D scene
@@ -243,37 +237,27 @@ void HexGridGenerator::Render3D(const Camera3D& camera) {
     // Black plane below it creates depth (you can't see past it)
     DrawPlane({ 0, -levelsBeforeAbyss * 1.5f - 1.05f, 0 }, { floorSize, floorSize }, BLACK);
 
-    // ===== DRAW ALL PLATFORMS (all levels) =====
+    // Draw only up to levelsBeforeAbyss (fixed!)
     for (int level = 0; level < levelsBeforeAbyss; level++) {
         for (int r = -gridRadius; r <= gridRadius; r++) {
             for (int q = -gridRadius; q <= gridRadius; q++) {
-                if (!IsWithinCircle(q, r)) continue;  // Skip outside circle
+                if (!IsWithinCircle(q, r)) continue;
 
                 int rowIdx = r + gridRadius;
                 int colIdx = q + gridRadius;
 
                 const auto& tile = grid[level][rowIdx][colIdx];
-                if (tile.type == TileType::EMPTY) continue;  // Don't draw empty tiles
-
-                // COLOR LOGIC: Yellow for normal platforms, Red for hazards
-                Color color = (tile.type == TileType::HAZARD) ? RED : YELLOW;
+                if (tile.type == TileType::EMPTY) continue; // Don't draw empty tiles
 
                 // DrawCylinder draws a 3D cylinder (perfect for hexagons with 6 sides!)
                 // Parameters: position, radiusTop, radiusBottom, height, sides, color
-                DrawCylinder(tile.worldPosition, hexRadius, hexRadius, 0.2f, 6, color);
+                DrawCylinder(tile.worldPosition, hexRadius, hexRadius, 0.2f, 6, YELLOW);
 
                 // Draw wireframe outline so edges are visible
                 DrawCylinderWires(tile.worldPosition, hexRadius, hexRadius, 0.21f, 6, BLACK);
-
-                // Draw selection glow (semi-transparent cylinder above the platform)
-                if (tile.isSelected) {
-                    DrawCylinder({ tile.worldPosition.x, tile.worldPosition.y + 0.3f, tile.worldPosition.z },
-                        hexRadius + 0.05f, hexRadius + 0.05f, 0.05f, 6, { 255,165,0,150 });
-                }
             }
         }
     }
-
     EndMode3D();  // Stop 3D drawing mode
 }
 
@@ -285,25 +269,32 @@ void HexGridGenerator::RenderUI() {
 
     int yOffset = 50;  // Starting Y position for first UI element
 
-    // LEVELS SLIDER - Your requested feature!
-    GuiLabel({ 20, (float)yOffset, 200, 20 }, TextFormat("Levels Before Abyss: %d", levelsBeforeAbyss));
-    yOffset += 25;
+    // LEVELS SLIDER
+    GuiLabel({ 20, (float)yOffset, 200, 20 }, TextFormat("Levels: %d / %d", levelsBeforeAbyss, maxLevels));
 
-    // Slider lets user choose between 1 and maxLevels
-    float sliderValue = (levelsBeforeAbyss - 1) / (float)(maxLevels - 1);
-    GuiSlider({ 20, (float)yOffset, 280, 20 }, "1", TextFormat("%d", maxLevels), &sliderValue, 1, maxLevels);
+    // Create a temporary float for the slider
+    static float sliderValue = (levelsBeforeAbyss - 1) / (float)(maxLevels - 1);
 
-    // Convert slider position back to actual level count
-    int newLevels = 1 + (int)(sliderValue * (maxLevels - 1));
-    if (newLevels != levelsBeforeAbyss) {
-        SetLevelsBeforeAbyss(newLevels);  // Update and regenerate
+    // Update slider value based on current levels
+    if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        sliderValue = (levelsBeforeAbyss - 1) / (float)(maxLevels - 1);
     }
 
-    yOffset += 40;  // Space between elements
+    // Draw slider and capture changes
+    Rectangle sliderRect = { 20, (float)yOffset, 280, 20 };
+    GuiSlider(sliderRect, "1", TextFormat("%d", maxLevels), &sliderValue, 0, 1);
+
+    // Apply changes when slider moves OR when mouse is released
+    int newLevels = 1 + (int)(sliderValue * (maxLevels - 1));
+    if (newLevels != levelsBeforeAbyss) {
+        SetLevelsBeforeAbyss(newLevels);
+    }
+
+    yOffset += 40; // Space
 
     // REGENERATE BUTTON
     if (GuiButton({ 20, (float)yOffset, 280, 30 }, "REGENERATE")) {
-        //Regenerate();  // Create new level with same settings
+        Regenerate();  // Create new level with same settings
     }
 
     yOffset += 45;
@@ -312,17 +303,17 @@ void HexGridGenerator::RenderUI() {
     GuiLabel({ 20, (float)yOffset, 200, 20 }, "Generation Algorithms:");
     yOffset += 25;
 
+    // Cellular Automata button
+    if (GuiButton({ 20, (float)yOffset, 130, 25 }, "Cellular Auto")) {
+        GenerateCellularAutomata(5);
+    }
+
     // Random Walk button
     if (GuiButton({ 160, (float)yOffset, 130, 25 }, "Random Walk")) {
         GenerateRandomWalk(200);
     }
 
     yOffset += 35;
-
-    // Cellular Automata button
-    if (GuiButton({ 20, (float)yOffset, 130, 25 }, "Cellular Auto")) {
-        GenerateCellularAutomata(5);
-    }
 
     // Clear button
     if (GuiButton({ 160, (float)yOffset, 130, 25 }, "Clear All")) {
@@ -348,13 +339,9 @@ void HexGridGenerator::RenderUI() {
     // INSTRUCTIONS
     GuiLabel({ 20, (float)yOffset, 280, 20 }, "Controls:");
     yOffset += 20;
-    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Right-click + Drag: Pan camera");
-    yOffset += 20;
     GuiLabel({ 20, (float)yOffset, 280, 20 }, "Alt + Drag: Orbit camera");
     yOffset += 20;
     GuiLabel({ 20, (float)yOffset, 280, 20 }, "Scroll: Zoom in/out");
-    yOffset += 20;
-    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Click on platforms to toggle");
 }
 
 // Manual editing - change a specific tile
@@ -392,6 +379,10 @@ void HexGridGenerator::ClearGrid() {
             }
         }
     }
+}
+
+void HexGridGenerator::Regenerate() {
+    GenerateCellularAutomata(5);
 }
 
 // ===== FILE I/O - Save level to disk =====

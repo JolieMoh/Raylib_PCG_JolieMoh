@@ -1,15 +1,14 @@
-#pragma once  // Prevents this file from being included twice (like "Ensure" in Unreal)
-#include <raylib.h>     // The drawing library
-#include <vector>       // C++ dynamic arrays (like TArray in Unreal)
-#include <string>       // For file names
-#include <random>       // For random number generation
+#pragma once 
+#include <raylib.h>     
+#include <vector>       // C++ dynamic arrays
+#include <string>       // file names
+#include <random>       // random number generation
 
 // This is an ENUM - like a dropdown in Blueprints where you pick from named options
 // Each tile on the grid can be one of these types
 enum class TileType {
     EMPTY = 0,      // No platform - player falls through
     PLATFORM = 1,   // Solid ground that holds the player
-    HAZARD,
 };
 
 // A STRUCT is like a Blueprint Struct - it bundles multiple variables together
@@ -112,5 +111,5 @@ public:
     int GetRadius() const { return gridRadius; }
     int GetMaxLevels() const { return maxLevels; }
 
-    //void Regenerate();  // Generate a new level with current settings
+    void Regenerate();  // Generate a new level with current settings
 };
