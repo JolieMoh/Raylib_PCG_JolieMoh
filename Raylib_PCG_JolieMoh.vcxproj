@@ -305,11 +305,13 @@
     <ClInclude Include="include\PCG.h" />
     <ClInclude Include="include\raygui.h" />
     <ClInclude Include="include\resource_dir.h" />
+    <ClInclude Include="include\Wk7.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\HexGenerator.cpp" />
     <ClCompile Include="src\PCG.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\Wk7.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\icon.ico" />
