@@ -11,8 +11,6 @@ HexGridGenerator::HexGridGenerator()
     maxLevels(5),            // Can stack up to 5 floors
     hexRadius(1.0f),         // Each hex is 1 unit wide
     hexSpacing(1.8f),        // Gives slight gap
-    noiseScale(0.15f),       // Noise 15% zoom - creates decent sized clusters
-    platformThreshold(0.55f), // 55% chance of platform at any point
     levelsBeforeAbyss(1),    // Start with 1 floors
     rng(std::random_device{}()) {  // Seed the random generator with unpredictable value
     InitializeGrid(gridRadius, maxLevels);  // Create the empty grid structure
@@ -264,7 +262,7 @@ void HexGridGenerator::Render3D(const Camera3D& camera) {
 // Draws all the UI buttons and sliders using RayGUI
 void HexGridGenerator::RenderUI() {
     // GuiPanel creates a semi-transparent background box for our UI
-    Rectangle panel = { 10, 10, 320, 500 };
+    Rectangle panel = { 10, 10, 320, 300 };
     GuiPanel(panel, "The Construct - Level Generator");
 
     int yOffset = 50;  // Starting Y position for first UI element
@@ -333,41 +331,6 @@ void HexGridGenerator::RenderUI() {
     if (GuiButton({ 160, (float)yOffset, 130, 25 }, "LOAD")) {
         LoadFromFile("level_data.bin");
     }
-
-    yOffset += 45;
-
-    // INSTRUCTIONS
-    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Controls:");
-    yOffset += 20;
-    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Alt + Drag: Orbit camera");
-    yOffset += 20;
-    GuiLabel({ 20, (float)yOffset, 280, 20 }, "Scroll: Zoom in/out");
-}
-
-// Manual editing - change a specific tile
-void HexGridGenerator::SetTile(int level, int x, int y, TileType type) {
-    // Validate coordinates (prevent crashes from bad input)
-    if (level >= 0 && level < levelsBeforeAbyss) {
-        int rowIdx = y + gridRadius;
-        int colIdx = x + gridRadius;
-        if (rowIdx >= 0 && rowIdx < 2 * gridRadius + 1 &&
-            colIdx >= 0 && colIdx < 2 * gridRadius + 1) {
-            grid[level][rowIdx][colIdx].type = type;
-        }
-    }
-}
-
-// Get tile type (with safety checks)
-TileType HexGridGenerator::GetTile(int level, int x, int y) const {
-    if (level >= 0 && level < levelsBeforeAbyss) {
-        int rowIdx = y + gridRadius;
-        int colIdx = x + gridRadius;
-        if (rowIdx >= 0 && rowIdx < 2 * gridRadius + 1 &&
-            colIdx >= 0 && colIdx < 2 * gridRadius + 1) {
-            return grid[level][rowIdx][colIdx].type;
-        }
-    }
-    return TileType::EMPTY;  // Return empty if invalid
 }
 
 // Erase everything

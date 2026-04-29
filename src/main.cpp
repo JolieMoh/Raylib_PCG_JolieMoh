@@ -1,6 +1,6 @@
 #include "HexGenerator.h"
-#include <raylib.h>
-#include <raygui.h>
+#include "raylib.h"
+#include "raygui.h"
 #include <iostream>
 #include "raymath.h"
 
@@ -56,49 +56,6 @@ int main() {
             distance = std::max(5.0f, distance);
             direction = Vector3Normalize(direction);
             camera.position = Vector3Add(camera.target, Vector3Scale(direction, distance));
-        }
-
-        // Handle tile selection (click to paint)
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            Ray ray = GetMouseRay(GetMousePosition(), camera);
-
-            // Check collision with all tiles
-            float closestHit = FLT_MAX;
-            int hitLevel = -1, hitQ = -1, hitR = -1;
-
-            for (int level = 0; level < generator.GetMaxLevels(); level++) {
-                for (int r = -generator.GetRadius(); r <= generator.GetRadius(); r++) {
-                    for (int q = -generator.GetRadius(); q <= generator.GetRadius(); q++) {
-                        Vector3 center = {
-                            (q + r * 0.5f) * 1.8f,
-                            -level * 1.2f,
-                            r * 1.732f
-                        };
-
-                        float radius = 1.2f;
-                        float hitDistance = 0;
-                        if (GetRayCollisionSphere(ray, center, radius).hit) {
-                            float dist = Vector3Distance(ray.position, center);
-                            if (dist < closestHit) {
-                                closestHit = dist;
-                                hitLevel = level;
-                                hitQ = q;
-                                hitR = r;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (hitLevel != -1) {
-                // Toggle platform on/off when clicked
-                if (generator.GetTile(hitLevel, hitQ, hitR) == TileType::PLATFORM) {
-                    generator.SetTile(hitLevel, hitQ, hitR, TileType::EMPTY);
-                }
-                else {
-                    generator.SetTile(hitLevel, hitQ, hitR, TileType::PLATFORM);
-                }
-            }
         }
 
         // Drawing
